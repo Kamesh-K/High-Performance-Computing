@@ -81,11 +81,7 @@ while iter < 10 and sorted == 0:
 		for i in range(len(random_list)-1):
 			if random_list[i] > random_list[i+1]:
 				sorted = 0
-		comm.send(sorted,dest =0, tag = iter)		
-		comm.send(sorted,dest = 1,tag=iter)
-		comm.send(sorted,dest = 2,tag=iter)
-		comm.send(sorted,dest = 3,tag=iter)
-	sorted = comm.recv(source =0,tag =iter)
+	sorted = comm.bcast(sorted,root=0)
 comm.send(data_1, dest = 0, tag = 0)
 comm.send(data_2, dest = 0, tag = 1)
 if rank ==0:
