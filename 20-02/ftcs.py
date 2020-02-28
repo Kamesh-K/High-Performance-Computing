@@ -9,99 +9,71 @@ rank = comm.Get_rank()
 size = comm.Get_size()
 n = size
 # Declaring the array and setting the seed for random
-size_list = 8
-random_list = []
-random.seed(4)
-# Initializing the random array 
-if rank ==0:
-	for i in range(size_list):
-		random_number = random.randint(1,40)
-		random_list.append(random_number)
-	print(random_list)
-sorted = 0
-iter = 1
-sorted = 1
-# Spliting the array to processes with two each for a process 
-if rank ==0:
-	for i in range(size_list):
-		comm.send(random_list[i],dest = int(i/2),tag=0)
-data_1 = comm.recv(source = 0, tag =0)
-data_2 = comm.recv(source = 0, tag =0)
-# Flag variable to check whether the array is sorted or not 
-sorted = 0
-# Loop to recursively sort the array 
-while iter < 100 and sorted == 0:
-#	print("Before Sorting - Iter - {} Rank {} - Elements - {} {}").format(iter,rank,data_1,data_2)	
-	sorted = 1
-# Based on the iter value the ODD or EVEN position swapping will take place
-	if iter%2 == 0:	# If its even, then the adjacent elements in a process will be swapped
-		if data_1 > data_2:
-			temp = data_2
-			data_2 = data_1
-			data_1 = temp
-	else:		# If its odd, adjacent element of different process will be swapped
-		# For Rank = 0 and N-1, we have edge cases to be included
-		# For other ranks, send the left element to rank-1 and right element to rank+1 		
-		if rank == 0:	
-			comm.send(data_2, dest = 1, tag = iter)
-		elif rank == n-1:
-			comm.send(data_1,dest = n-2, tag = iter)
-		else:			 
-			comm.send(data_1,dest=rank-1, tag = iter)
-			comm.send(data_2,dest=rank+1, tag = iter)
-		# Receive the elements and swap if needed
-		if rank == 0:
-			data_r = comm.recv(source = 1, tag = iter)
-			if data_2 > data_r:			
-				temp = data_2
-				data_2 = data_r
-				data_r = temp
-		elif rank == n-1:
-			data_l = comm.recv(source = n-2, tag = iter)
-			if data_l > data_1: 
-				temp = data_1
-				data_1 = data_l
-				data_l = temp
-		else:			 
-			data_l = comm.recv(source = rank-1, tag = iter)
-			data_r = comm.recv(source = rank+1, tag = iter)
-			if data_l > data_1: 
-				temp = data_1
-				data_1 = data_l
-				data_l = temp
-			if data_2 > data_r:			
-				temp = data_2
-				data_2 = data_r
-				data_r = temp
-	iter += 1
-#	print("Rank {} - Elements - {} {}").format(rank,data_1,data_2)
-	# Sending all the array elements and gathering in Rank - 0 to check whether the array is sorted or not 
-	comm.send(data_1, dest = 0, tag = 0)
-	comm.send(data_2, dest = 0, tag = 1)
-	if rank ==0:
-		# Array is gathered using the rank and tag sequentially 
-		for i in range(0,size_list,2):
-			left = comm.recv(source = int(i/2),tag=0)
-			right = comm.recv(source = int(i/2),tag=1)
-			random_list[i] = left
-			random_list[i+1] = right
-		# Partially sorted array is printed on the screen
-		print random_list
-		# Checking whether the array is sorted or not 
-		for i in range(len(random_list)-1):
-			if random_list[i] > random_list[i+1]:
-				sorted = 0
-	# Broadcasting the result whether the array is sorted or not 
-	sorted = comm.bcast(sorted,root=0)
-# Gathering the elements to consolidate the final array 
-comm.send(data_1, dest = 0, tag = 0)
-comm.send(data_2, dest = 0, tag = 1)
-if rank ==0:
-	for i in range(0,size_list,2):
-		data_1 = comm.recv(source = int(i/2),tag=0)
-		data_2 = comm.recv(source = int(i/2),tag=1)
-		random_list[i] = data_1
-		random_list[i+1] = data_2
-	print "The Sorted Array is as follows:"
-	print random_list
+del_x = 0.01
+del_t = 0.01 
+length = 1
+time_max = 100
+alpha = 1.11 * 10**(-4)
+size_list = int(length/del_x) 
+temp_arr = None
+block_size = int(size_list/size)
+local_temp_arr = np.empty(block_size).fill(0)
+#temp_arr = [300]*size_list;
+sendbuf = None
+if rank == 0:
+    temp_arr = np.empty([size, block_size], dtype='f')
+    temp_arr.T[:,:] = 300
+    temp_arr[size-1,block_size-1]=500
+local_temp_arr = np.empty(block_size, dtype='f')
+comm.Scatter(temp_arr, local_temp_arr, root=0)
+temp_1 = local_temp_arr
+temp_2 = local_temp_arr
+r = alpha * del_t/(del_x**2)
+max_time_step = int(time_max/del_t)
+time_step = 0 
+left_elem = None 
+right_elem = None 
+#if rank ==0:
+#	index_table = np.arange(1,size_list)
+#	with open("Temperature_Profile.txt", "a") as myfile:
+#	 	np.savetxt(myfile, index_table, fmt='%1.4e')
 
+while time_step < max_time_step:
+	for i in range(1,block_size-1):
+		temp_2[i]= temp_1[i] + r*(temp_1[i+1] - 2*temp_1[i] + temp_1[i-1])
+	if rank == 0:
+		comm.send(temp_1[block_size-1], dest = rank+1, tag = time_step)
+		right_elem = comm.recv(source = rank+1,tag = time_step)
+		temp_2[block_size-1] = temp_1[block_size-1] + r*(right_elem - 2*temp_1[block_size-1]+ temp_1[block_size-2])
+	elif rank == size - 1:
+		comm.send(temp_1[0],dest = rank-1, tag = time_step)
+		left_elem = comm.recv(source = rank -1, tag = time_step)
+		temp_2[0] = temp_1[0] + r*(temp_1[1] - 2*temp_1[0] + left_elem)
+	else:
+		comm.send(temp_1[block_size-1], dest = rank+1, tag = time_step)
+		comm.send(temp_1[0],dest = rank-1, tag = time_step)
+		left_elem = comm.recv(source = rank -1, tag = time_step)
+		right_elem = comm.recv(source = rank+1,tag = time_step)
+		temp_2[block_size-1] = temp_1[block_size-1] + r*(right_elem - 2*temp_1[block_size-1]+ temp_1[block_size-2])
+		temp_2[0] = temp_1[0] + r*(temp_1[1] - 2*temp_1[0] + left_elem)
+	temp_1 = temp_2 
+	time_step += 1
+	comm.Gather(temp_1,temp_arr,root =0)
+
+	if rank ==0:
+#		with open("Temperature_Profile.csv", "a") as myfile:
+#		 	np.savetxt(myfile, temp_arr, fmt='%1.4e')
+		temp_csv = np.reshape(temp_arr,(1,size_list))
+		with open("Temperature_Profile.txt", "a") as myfile:
+		 	np.savetxt(myfile, temp_csv, fmt='%1.4e', delimiter=",")
+#			np.savetxt("Temp.csv",temp_csv, delimiter=",")
+		 	#myfile.write("appended text")
+
+#    	
+#	if rank ==0:
+#		np.savetxt('Temperature_Profile.out', temp_arr, fmt='%1.4e')
+#	if rank==size-1:
+#		print temp_2
+#temp_arr[size_list-1] = 500
+#while time <= time_max:
+#end
