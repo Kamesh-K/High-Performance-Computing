@@ -1,4 +1,4 @@
-# Program to sort a solve the 1-D transient heat equation  
+# Program to solve the 1-D transient heat equation  
 # Importing the required libraries 
 import math
 import random 
