@@ -11,7 +11,7 @@ n = size
 # Declaring the array and setting the seed for random
 size_list = 8
 random_list = []
-random.seed(3)
+random.seed(4)
 # Initializing the random array 
 if rank ==0:
 	for i in range(size_list):
@@ -20,7 +20,6 @@ if rank ==0:
 	print(random_list)
 sorted = 0
 iter = 1
-# Block Method
 sorted = 1
 # Spliting the array to processes with two each for a process 
 if rank ==0:

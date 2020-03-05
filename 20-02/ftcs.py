@@ -33,6 +33,7 @@ max_time_step = int(time_max/del_t)
 time_step = 0 
 left_elem = None 
 right_elem = None 
+open('Temperature_Profile.txt', 'w').close()	
 #if rank ==0:
 #	index_table = np.arange(1,size_list)
 #	with open("Temperature_Profile.txt", "a") as myfile:
