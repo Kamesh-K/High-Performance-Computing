@@ -15,4 +15,19 @@ $$
 L_x = L_y = 10 \\
 V_{Plate} = 5 \\
 $$
- 
+
+###  2-D Heat Conduction Equation
+
+$$
+\frac{\part^2 T}{\part x^2} + \frac{\part^2 T}{\part y^2} = \frac{1}{\alpha}\frac{\part T}{\part t}    
+$$
+
+$$
+Discretized \ form \ of \ the\ equation \\
+T_{i,j-1} = T_{i,j+1} - 2 \Delta \frac{\part T}{\part y}
+$$
+
+For a 2-D case, considering the 2-D Matrix to be an 1-D array, we have the following equation:
+$$
+T_{i,j}^{n+1} = T_{i,j}^{n} + \alpha\Delta t \Big(\frac{T_{i+1,j}^{n}+T_{i,j+1}^{n}+T_{i-1,j}^{n}+T_{i,j-1}^{n}-4T_{i,j}^{n}}{(\Delta x)^2}\Big)
+$$
